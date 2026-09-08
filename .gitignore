@@ -1,0 +1,18 @@
+# Node dependencies & caches
+node_modules/
+package-lock.json
+.npm/
+
+# Download archives & temp files
+.download_archive.txt
+/tmp/pomfy_*
+/tmp/test_*
+falhas_download_*.txt
+
+# OS & Editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
