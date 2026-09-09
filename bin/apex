@@ -560,13 +560,23 @@ download_batch() {
         exit 0
     fi
 
-    echo -e "${MAUVE}${BOLD}╭──────────────────────────────────────────────────────────────╮${NC}"
-    echo -e "${MAUVE}${BOLD}│       📦 DOWNLOAD EM LOTE APEX V2 (BATCH MODE ATIVADO)       │${NC}"
-    echo -e "${MAUVE}${BOLD}╰──────────────────────────────────────────────────────────────╯${NC}"
-    echo -e "  ${BOLD}Arquivo Fonte  :${NC} $file_name (${file_ext^^})"
-    echo -e "  ${BOLD}Fila de Mídias :${NC} ${BOLD}$total links válidos detectados${NC}"
-    echo -e "  ${BLUE}Pasta Destino  :${NC} $dest"
-    echo -e "  ${SUBTEXT}Multi-thread 16 conexões ativas + detecção automática de duplicados.${NC}\n"
+    if [ "$mode" == "transcript" ]; then
+        echo -e "${MAUVE}${BOLD}╭──────────────────────────────────────────────────────────────╮${NC}"
+        echo -e "${MAUVE}${BOLD}│     🤖 TRANSCRIÇÃO IA EM LOTE APEX V2 (BATCH TRANSCRIPT)     │${NC}"
+        echo -e "${MAUVE}${BOLD}╰──────────────────────────────────────────────────────────────╯${NC}"
+        echo -e "  ${BOLD}Arquivo Fonte  :${NC} $file_name (${file_ext^^})"
+        echo -e "  ${BOLD}Fila de Mídias :${NC} ${BOLD}$total links válidos detectados${NC}"
+        echo -e "  ${BLUE}Pasta Destino  :${NC} $dest"
+        echo -e "  ${SUBTEXT}Extrai legendas/transcrições sem baixar vídeo → .md + .txt limpos para IA.${NC}\n"
+    else
+        echo -e "${MAUVE}${BOLD}╭──────────────────────────────────────────────────────────────╮${NC}"
+        echo -e "${MAUVE}${BOLD}│       📦 DOWNLOAD EM LOTE APEX V2 (BATCH MODE ATIVADO)       │${NC}"
+        echo -e "${MAUVE}${BOLD}╰──────────────────────────────────────────────────────────────╯${NC}"
+        echo -e "  ${BOLD}Arquivo Fonte  :${NC} $file_name (${file_ext^^})"
+        echo -e "  ${BOLD}Fila de Mídias :${NC} ${BOLD}$total links válidos detectados${NC}"
+        echo -e "  ${BLUE}Pasta Destino  :${NC} $dest"
+        echo -e "  ${SUBTEXT}Multi-thread 16 conexões ativas + detecção automática de duplicados.${NC}\n"
+    fi
 
     local current=0
     local success_new=0
@@ -600,6 +610,8 @@ download_batch() {
             download_spotify "$u" "mp3" "$item_dest" "cli" || res=1
         elif is_gallery_domain "$u"; then
             download_gallery "$u" "$item_dest" || res=1
+        elif [ "$mode" == "transcript" ]; then
+            download_transcript "$u" "$item_dest" || res=1
         elif [ "$mode" == "audio" ]; then
             download_audio "$u" "$item_dest" "" true || res=1
         else
@@ -607,19 +619,24 @@ download_batch() {
         fi
 
         if [ "$res" -eq 0 ]; then
-            local lines_after=0
-            [ -f "$archive_file" ] && lines_after=$(wc -l < "$archive_file" 2>/dev/null || echo 0)
-            if [ "$lines_after" -gt "$lines_before" ]; then
+            if [ "$mode" == "transcript" ]; then
                 success_new=$((success_new + 1))
-                echo -e "   ${GREEN}✔ [SUCESSO] Baixado e convertido para MP4 com sucesso!${NC}"
+                echo -e "   ${GREEN}✔ [SUCESSO] Transcrição limpa (.md + .txt) gerada e salva!${NC}"
             else
-                already_downloaded=$((already_downloaded + 1))
-                echo -e "   ${TEAL}⏭️  [JÁ EXISTE] Já registrado no histórico local (arquivo preservado).${NC}"
+                local lines_after=0
+                [ -f "$archive_file" ] && lines_after=$(wc -l < "$archive_file" 2>/dev/null || echo 0)
+                if [ "$lines_after" -gt "$lines_before" ]; then
+                    success_new=$((success_new + 1))
+                    echo -e "   ${GREEN}✔ [SUCESSO] Baixado e convertido com sucesso!${NC}"
+                else
+                    already_downloaded=$((already_downloaded + 1))
+                    echo -e "   ${TEAL}⏭️  [JÁ EXISTE] Já registrado no histórico local (arquivo preservado).${NC}"
+                fi
             fi
         else
             failed=$((failed + 1))
             failed_urls+=("$u")
-            echo -e "   ${RED}❌ [FALHA] Link indisponível, excluído ou protegido (404/410).${NC}"
+            echo -e "   ${RED}❌ [FALHA] Legenda ou link indisponível.${NC}"
         fi
         echo ""
     done
@@ -628,9 +645,15 @@ download_batch() {
     echo -e "${MAUVE}${BOLD}│             📊 RESUMO DO PROCESSAMENTO EM LOTE               │${NC}"
     echo -e "${MAUVE}${BOLD}╰──────────────────────────────────────────────────────────────╯${NC}"
     echo -e "  ${BOLD}Total de URLs processadas :${NC} $total"
-    echo -e "  ${GREEN}✅ Baixados com sucesso   :${NC} ${BOLD}$success_new${NC}"
-    echo -e "  ${TEAL}⏭️  Já existiam (pulados)  :${NC} ${BOLD}$already_downloaded${NC}"
-    echo -e "  ${RED}❌ Links indisponíveis    :${NC} ${BOLD}$failed${NC}"
+    if [ "$mode" == "transcript" ]; then
+        echo -e "  ${GREEN}✅ Transcrições geradas   :${NC} ${BOLD}$success_new${NC}"
+        echo -e "  ${RED}❌ Falhas / Sem legendas  :${NC} ${BOLD}$failed${NC}"
+    else
+        echo -e "  ${GREEN}✅ Baixados com sucesso   :${NC} ${BOLD}$success_new${NC}"
+        echo -e "  ${TEAL}⏭️  Já existiam (pulados)  :${NC} ${BOLD}$already_downloaded${NC}"
+        echo -e "  ${RED}❌ Links indisponíveis    :${NC} ${BOLD}$failed${NC}"
+    fi
+    echo -e "  ${BLUE}📁 Pasta de destino       :${NC} $dest"
     echo -e "${MAUVE}────────────────────────────────────────────────────────────────${NC}"
 
     if [ "$failed" -gt 0 ]; then
@@ -639,7 +662,145 @@ download_batch() {
         echo -e "${YELLOW}📝 Lista dos links que falharam salva em:${NC} $fail_file\n"
     fi
 
-    notify_completion "Lote Concluído: $success_new novos, $already_downloaded pulados, $failed falhas" "$dest"
+    if [ "$mode" == "transcript" ]; then
+        notify_completion "Transcrições em Lote: $success_new concluídas, $failed falhas" "$dest"
+    else
+        notify_completion "Lote Concluído: $success_new novos, $already_downloaded pulados, $failed falhas" "$dest"
+    fi
+}
+
+choose_batch_action_fzf() {
+    local batch_file="$1"
+    if [ ! -f "$batch_file" ]; then
+        echo -e "${RED}❌ Arquivo não encontrado:${NC} $batch_file"
+        exit 1
+    fi
+
+    local total_links
+    total_links=$(grep -oP '(https?://[^\s\)\"\>\]]+|magnet:\?[^\s\)\"\>\]]+)' "$batch_file" 2>/dev/null | awk '!seen[$0]++' | wc -l || echo 0)
+
+    local file_name
+    file_name=$(basename "$batch_file")
+
+    if command -v fzf >/dev/null 2>&1 && [ -t 0 ]; then
+        local batch_menu="1\t🤖 Extrair Transcrições Limpas para IA (.md / .txt)\tExtrai texto e legendas de todos os links sem baixar os vídeos. Salva em Markdown rico com prompts para LLMs.\n2\t🎥 Baixar Todos em Vídeo MP4 (1080p / Full HD)\tBaixa os vídeos completos em máxima resolução com 16 conexões simultâneas e legendas embutidas.\n3\t🎵 Baixar Todos em Áudio MP3 (320kbps + Capas + Tags)\tExtrai as faixas de áudio em MP3 320k com metadados e capas oficiais embutidas.\n4\t🚪 Cancelar\tRetorna sem processar."
+
+        local chosen
+        chosen=$(echo -e "$batch_menu" | fzf \
+            --prompt="📦 Ação para ${file_name} (${total_links} links) > " \
+            --header="[ENTER] Confirmar • [Ctrl+J/K] Navegar • [ESC] Cancelar" \
+            --height=45% \
+            --layout=reverse \
+            --border=rounded \
+            --color=header:italic,spinner:#f5e0dc,hl:#f38ba8 \
+            --color=fg:#cdd6f4,header:#cba6f7,info:#cba6f7,pointer:#f5e0dc \
+            --color=marker:#b4befe,fg+:#cdd6f4,prompt:#cba6f7,hl+:#f38ba8 \
+            --bind="ctrl-j:down,ctrl-k:up" \
+            --with-nth=2 \
+            --delimiter="\t" \
+            --preview='echo -e "\n\033[1;38;2;203;166;247m╭────────────────────────────────────────╮\033[0m\n\033[1;38;2;203;166;247m│ {2}\033[0m\n\033[1;38;2;203;166;247m╰────────────────────────────────────────╯\033[0m\n\n\033[38;2;205;214;244m{3}\033[0m"' \
+            --preview-window="right:45%:wrap:border-rounded")
+
+        local act
+        act=$(echo "$chosen" | cut -f1)
+        case "$act" in
+            1)
+                download_batch "$batch_file" "${CUSTOM_DIR:-$DEFAULT_DEST_TRANSCRIPT}" "transcript"
+                ;;
+            2)
+                download_batch "$batch_file" "${CUSTOM_DIR:-$DEFAULT_DEST_VIDEO}" "video"
+                ;;
+            3)
+                download_batch "$batch_file" "${CUSTOM_DIR:-$DEFAULT_DEST_AUDIO}" "audio"
+                ;;
+            *)
+                echo -e "${RED}Operação cancelada.${NC}"
+                exit 0
+                ;;
+        esac
+    else
+        echo -e "\n${BOLD}Como deseja processar o lote de $file_name ($total_links links)?${NC}"
+        echo -e "  [1] 🤖 Extrair Transcrições Limpas para IA (.md / .txt - Sem Baixar Vídeo)"
+        echo -e "  [2] 🎥 Baixar Todos em Vídeo MP4 (1080p)"
+        echo -e "  [3] 🎵 Baixar Todos em Áudio MP3 (320kbps)"
+        echo -e "  [q] Cancelar"
+        read -rp "Opção [1-3, padrão: 1]: " b_opt
+        case "$b_opt" in
+            2) download_batch "$batch_file" "${CUSTOM_DIR:-$DEFAULT_DEST_VIDEO}" "video" ;;
+            3) download_batch "$batch_file" "${CUSTOM_DIR:-$DEFAULT_DEST_AUDIO}" "audio" ;;
+            q|Q) exit 0 ;;
+            *) download_batch "$batch_file" "${CUSTOM_DIR:-$DEFAULT_DEST_TRANSCRIPT}" "transcript" ;;
+        esac
+    fi
+}
+
+select_batch_file_fzf() {
+    local candidate=""
+    if command -v fzf >/dev/null 2>&1 && [ -t 0 ]; then
+        # Coleta arquivos .txt e .md de locais prováveis
+        local files_list=""
+        for search_dir in "$HOME" "/mnt/dados" "$DEFAULT_DEST_VIDEO" "$DEFAULT_DEST_TRANSCRIPT" "$DEFAULT_DEST_PRIVATE"; do
+            if [ -d "$search_dir" ]; then
+                if command -v fd >/dev/null 2>&1; then
+                    files_list+="$(fd -t f -e txt -e md --max-depth 4 \
+                        --exclude '.git' --exclude '.cache' --exclude '.gemini' \
+                        --exclude 'node_modules' --exclude '.cargo' --exclude '.rustup' \
+                        --exclude '.local/share' --exclude '.oh-my-zsh' \
+                        . "$search_dir" 2>/dev/null)\n"
+                fi
+            fi
+        done
+
+        # Deduplica e filtra linhas vazias
+        local sorted_files
+        sorted_files=$(echo -e "$files_list" | awk 'NF && !seen[$0]++' | sort)
+
+        local fzf_output
+        fzf_output=$(echo "$sorted_files" | fzf \
+            --prompt="📄 Selecione o Arquivo ou Cole URL > " \
+            --header=$'[ENTER] Selecionar arquivo • Digite URL para processá-la\n[Ctrl+J/K] Navegar • [ESC] Cancelar' \
+            --height=55% \
+            --layout=reverse \
+            --border=rounded \
+            --print-query \
+            --color=header:italic,spinner:#f5e0dc,hl:#f38ba8 \
+            --color=fg:#cdd6f4,header:#cba6f7,info:#cba6f7,pointer:#f5e0dc \
+            --color=marker:#b4befe,fg+:#cdd6f4,prompt:#cba6f7,hl+:#f38ba8 \
+            --bind="ctrl-j:down,ctrl-k:up" \
+            --preview='if [ -f "{}" ]; then
+                links=$(grep -oP "(https?://[^\s\)\"\>\]]+)" "{}" 2>/dev/null | awk "!seen[\$0]++" | wc -l)
+                echo -e "\033[1;38;2;166;227;161m📄 Arquivo: {}\033[0m"
+                echo -e "\033[38;2;137;180;250m🔗 Links detectados: ${links}\033[0m\n"
+                head -n 30 "{}"
+            else
+                echo -e "\033[38;2;249;226;175mDigite ou cole uma URL na barra de busca acima.\033[0m"
+                echo -e "\033[38;2;205;214;244mOu selecione um arquivo .txt / .md da lista.\033[0m"
+            fi' \
+            --preview-window="right:50%:wrap:border-rounded" || true)
+
+        # --print-query retorna: linha 1 = query digitada, linha 2 = item selecionado
+        local query selected
+        query=$(echo "$fzf_output" | head -n1)
+        selected=$(echo "$fzf_output" | tail -n +2 | head -n1)
+
+        if [ -n "$selected" ] && [ -f "$selected" ]; then
+            candidate="$selected"
+        elif [ -n "$query" ]; then
+            # Usuário digitou algo: pode ser um caminho ou URL
+            local expanded="${query/#\~/$HOME}"
+            if [ -f "$expanded" ]; then
+                candidate="$expanded"
+            else
+                # Retorna como URL para o chamador tratar
+                candidate="$query"
+            fi
+        fi
+    else
+        read -rp "📄 Cole a URL ou o caminho do arquivo (.txt/.md): " candidate
+        candidate="${candidate/#\~/$HOME}"
+    fi
+
+    echo "$candidate"
 }
 
 
@@ -2048,7 +2209,17 @@ run_cli_mode() {
                     fi
                     ;;
                 5)
-                    read -rp "Cole a URL ou caminho do arquivo (.txt/.md): " url
+                    local chosen_file
+                    chosen_file=$(select_batch_file_fzf)
+                    if [ -n "$chosen_file" ] && [ -f "$chosen_file" ]; then
+                        choose_batch_action_fzf "$chosen_file"
+                    elif [ -n "$chosen_file" ]; then
+                        # Usuário digitou uma URL em vez de selecionar arquivo
+                        url="$chosen_file"
+                    fi
+                    if [ -z "$url" ]; then
+                        exit 0
+                    fi
                     ;;
                 6)
                     local now_url
@@ -2089,7 +2260,7 @@ run_cli_mode() {
         batch_file_candidate="$DEFAULT_DEST_PRIVATE/$batch_file_candidate"
     fi
     if [ -f "$batch_file_candidate" ]; then
-        download_batch "$batch_file_candidate" "$dest_v" "video"
+        choose_batch_action_fzf "$batch_file_candidate"
         exit 0
     fi
 
@@ -2629,6 +2800,10 @@ main() {
         [ "$FORCE_PRIVATE" = true ] && dest_batch="$DEFAULT_DEST_PRIVATE/Videos_e_Cenas"
         local mode="video"
         [ "$direct_action" == "audio" ] && mode="audio"
+        if [ "$direct_action" == "transcript" ]; then
+            mode="transcript"
+            dest_batch="${CUSTOM_DIR:-$DEFAULT_DEST_TRANSCRIPT}"
+        fi
         download_batch "$batch_candidate" "$dest_batch" "$mode"
         exit 0
     fi
